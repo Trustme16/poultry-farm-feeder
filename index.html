@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poultry Farm Feeder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐔</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #E8EEEC;
+    --ink: #15302B;
+    --muted: #5B726C;
+    --pine: #1F4D45;
+    --grain: #F0B33A;
+    --grain-ink: #3A2800;
+    --paper: #F7FAF9;
+    --line: #C9D6D2;
+    --ok: #2E8B57;
+    --bad: #B3402F;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    line-height: 1.45;
+  }
+  main { max-width: 520px; margin: 0 auto; padding: 28px 18px 60px; }
+  h1 { font-size: 2rem; line-height: 1.1; margin: 0 0 6px; font-weight: 800; letter-spacing: -0.02em; }
+  h2 { font-size: 1.1rem; margin: 34px 0 10px; font-weight: 600; }
+  h3 { font-size: 1rem; margin: 22px 0 8px; font-weight: 600; }
+  p { margin: 0; color: var(--muted); }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 3px solid var(--grain); outline-offset: 2px; }
+
+  .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px; margin-top: 22px; }
+  label { display: block; font-weight: 600; font-size: .95rem; margin: 14px 0 6px; }
+  input, select {
+    width: 100%; font: inherit; padding: 11px 12px; border-radius: 10px;
+    border: 1.5px solid var(--line); background: #fff; color: var(--ink);
+  }
+  input:focus, select:focus { border-color: var(--pine); outline: none; box-shadow: 0 0 0 3px rgba(31,77,69,.18); }
+  button { font: inherit; cursor: pointer; }
+  .primary {
+    width: 100%; margin-top: 18px; padding: 13px; border: 0; border-radius: 10px;
+    background: var(--pine); color: #fff; font-weight: 600; font-size: 1rem;
+  }
+  .primary:hover { background: #17403A; }
+  .secondary {
+    padding: 9px 14px; border-radius: 10px; border: 1.5px solid var(--pine);
+    background: transparent; color: var(--pine); font-weight: 600;
+  }
+  .secondary:hover { background: #DDE9E5; }
+  .error { color: var(--bad); font-size: .92rem; margin-top: 12px; min-height: 1.2em; }
+  .okmsg { color: var(--ok); }
+
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .link { background: none; border: 0; color: var(--pine); text-decoration: underline; padding: 6px 0; font-size: .95rem; }
+  .status { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-weight: 600; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--bad); }
+  .online .dot { background: var(--ok); box-shadow: 0 0 0 4px rgba(46,139,87,.2); }
+
+  /* The hopper: the one memorable element. The gate slides open while a feed is running. */
+  .hopper { background: var(--pine); border-radius: 16px; padding: 22px 22px 26px; margin-top: 22px; color: #fff; }
+  .hopper p { color: #BCD3CD; }
+  .gate-wrap { height: 14px; background: #123630; border-radius: 7px; margin: 18px 0 20px; position: relative; overflow: hidden; }
+  .gate { position: absolute; inset: 0 auto 0 0; width: 100%; background: #8AA79F; border-radius: 7px; transition: transform .35s ease; }
+  .hopper.busy .gate { transform: translateX(78%); background: var(--grain); }
+  .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .feed-btn {
+    background: var(--grain); color: var(--grain-ink); border: 0; border-radius: 12px;
+    padding: 16px 6px; font-weight: 800; font-size: 1.5rem; line-height: 1;
+  }
+  .feed-btn small { display: block; font-size: .8rem; font-weight: 600; margin-top: 5px; }
+  .feed-btn:hover:not(:disabled) { background: #F7C257; }
+  .feed-btn:disabled { opacity: .45; cursor: not-allowed; }
+  #left { margin-top: 16px; font-size: .92rem; }
+  #msg { min-height: 1.4em; margin-top: 6px; font-size: .95rem; color: #fff; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--paper); border: 1px solid var(--line); }
+  th, td { text-align: left; padding: 11px 12px; font-size: .93rem; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; background: #EEF3F1; }
+  tr:last-child td { border-bottom: 0; }
+  .wrap { overflow-x: auto; border-radius: 14px; }
+  .empty { padding: 18px; color: var(--muted); }
+  .pill { font-size: .8rem; padding: 2px 8px; border-radius: 99px; background: #E4EFE9; color: var(--ok); font-weight: 600; }
+  .pill.pending { background: #FBEFD2; color: #8A6100; }
+
+  /* Admin */
+  details.admin { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 4px 18px 18px; margin-top: 30px; }
+  details.admin summary { cursor: pointer; font-weight: 600; padding: 14px 0; }
+  .row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .row .link { color: var(--bad); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  ul.users { list-style: none; margin: 0; padding: 0; }
+  ul.users li { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  ul.users li:last-child { border-bottom: 0; }
+  ul.users .tag { color: var(--muted); font-size: .85rem; }
+  .small { font-size: .9rem; margin-bottom: 8px; }
+  .switch { margin-top: 16px; font-size: .95rem; }
+  .switch .link { padding: 0; }
+  label.check { display: flex; gap: 10px; align-items: center; font-weight: 600; margin: 18px 0 0; }
+  label.check input { width: auto; }
+  @media (prefers-reduced-motion: reduce) { .gate { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <!-- LOGIN -->
+  <section id="login-view">
+    <h1>Poultry Farm Feeder</h1>
+    <p>Log in to feed the poultry and see the feeding history.</p>
+    <div class="panel">
+      <div id="login-form">
+        <label for="username">Username</label>
+        <input id="username" autocomplete="username" autocapitalize="none">
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password">
+        <button class="primary" id="login-btn">Log in</button>
+        <div class="error" id="login-error" role="alert"></div>
+        <p class="switch">No account yet? <button class="link" id="show-register" type="button">Create one</button></p>
+      </div>
+
+      <div id="register-form" hidden>
+        <label for="reg-user">Choose a username</label>
+        <input id="reg-user" autocomplete="username" autocapitalize="none">
+        <label for="reg-pass">Password (at least 6 characters)</label>
+        <input id="reg-pass" type="password" autocomplete="new-password">
+        <label for="reg-pass2">Repeat password</label>
+        <input id="reg-pass2" type="password" autocomplete="new-password">
+        <button class="primary" id="register-btn">Create account</button>
+        <div class="error" id="register-error" role="alert"></div>
+        <p class="switch">Already have an account? <button class="link" id="show-login" type="button">Log in</button></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="dash-view" hidden>
+    <div class="topbar">
+      <div>
+        <h1>Poultry Farm Feeder</h1>
+        <p>Logged in as <strong id="who"></strong></p>
+      </div>
+      <button class="link" id="logout-btn">Log out</button>
+    </div>
+    <div class="status" id="status"><span class="dot"></span><span id="status-text">Checking feeder…</span></div>
+
+    <div class="hopper" id="hopper">
+      <strong>Open the feeder for</strong>
+      <div class="gate-wrap" aria-hidden="true"><div class="gate"></div></div>
+      <div class="options">
+        <button class="feed-btn" data-sec="1">1<small>second</small></button>
+        <button class="feed-btn" data-sec="3">3<small>seconds</small></button>
+        <button class="feed-btn" data-sec="5">5<small>seconds</small></button>
+      </div>
+      <p id="left"></p>
+      <div id="msg" role="status"></div>
+    </div>
+
+    <h2>Feeding history</h2>
+    <div class="wrap">
+      <table>
+        <thead><tr><th>User</th><th>Date and time</th><th>Open</th><th></th></tr></thead>
+        <tbody id="history"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" hidden>No feedings yet. Press a button above to start.</div>
+
+    <!-- ADMIN ONLY -->
+    <details class="admin" id="admin" hidden>
+      <summary>Admin settings</summary>
+
+      <h3>Registration</h3>
+      <label class="check"><input type="checkbox" id="allow-reg"> Let new people create their own accounts</label>
+
+      <h3>Daily limit</h3>
+      <label for="limit">Feedings per user per day (admins have no limit)</label>
+      <input id="limit" type="number" min="1" max="50">
+
+      <h3>Automatic feeding</h3>
+      <p class="small" id="tz-note"></p>
+      <div id="sched"></div>
+      <button class="secondary" id="add-time" type="button">Add a time</button>
+      <button class="primary" id="save-settings" type="button">Save settings</button>
+      <div class="error" id="settings-msg" role="status"></div>
+
+      <h3>Users</h3>
+      <ul class="users" id="users"></ul>
+      <div class="two">
+        <div><label for="new-user">New username</label><input id="new-user" autocapitalize="none" autocomplete="off"></div>
+        <div><label for="new-pass">Password</label><input id="new-pass" type="password" autocomplete="new-password"></div>
+      </div>
+      <button class="primary" id="add-user" type="button">Add user</button>
+      <div class="error" id="users-msg" role="status"></div>
+    </details>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let token = localStorage.getItem("feeder_token");
+let timer = null;
+let adminLoaded = false;
+
+function show(loggedIn) {
+  $("login-view").hidden = loggedIn;
+  $("dash-view").hidden = !loggedIn;
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: { "content-type": "application/json", ...(token ? { authorization: "Bearer " + token } : {}) },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && !data.error) {
+    data.error = res.status === 404
+      ? "Backend not found (404). The site must be deployed from GitHub or the Netlify CLI, including the netlify/functions folder."
+      : `Server error (${res.status}). Check the Netlify function logs.`;
+  }
+  if (res.status === 401 && token && path !== "/api/login") logout();
+  return { ok: res.ok, status: res.status, data };
+}
+
+async function login() {
+  $("login-error").textContent = "";
+  const { ok, data } = await api("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ username: $("username").value.trim(), password: $("password").value }),
+  });
+  if (!ok) { $("login-error").textContent = data.error || "Could not log in"; return; }
+  token = data.token;
+  localStorage.setItem("feeder_token", token);
+  $("password").value = "";
+  start();
+}
+
+async function register() {
+  const err = $("register-error");
+  err.textContent = "";
+  if ($("reg-pass").value !== $("reg-pass2").value) { err.textContent = "The two passwords don't match"; return; }
+  const { ok, data } = await api("/api/register", {
+    method: "POST",
+    body: JSON.stringify({ username: $("reg-user").value.trim(), password: $("reg-pass").value }),
+  });
+  if (!ok) { err.textContent = data.error || "Could not create the account"; return; }
+  token = data.token;
+  localStorage.setItem("feeder_token", token);
+  $("reg-pass").value = ""; $("reg-pass2").value = "";
+  start();
+}
+
+function showForm(which) {
+  $("login-form").hidden = which !== "login";
+  $("register-form").hidden = which !== "register";
+}
+
+function logout() {
+  token = null;
+  adminLoaded = false;
+  localStorage.removeItem("feeder_token");
+  clearInterval(timer);
+  $("admin").hidden = true;
+  show(false);
+}
+
+async function refresh() {
+  const { ok, data } = await api("/api/history");
+  if (!ok) return;
+  $("who").textContent = data.user;
+  $("status").classList.toggle("online", data.online);
+  $("status-text").textContent = data.online ? "Feeder is online" : "Feeder is offline";
+  $("hopper").classList.toggle("busy", data.busy);
+
+  const outOfFeedings = data.remaining === 0;
+  document.querySelectorAll(".feed-btn").forEach((b) => (b.disabled = !data.online || data.busy || outOfFeedings));
+  $("left").textContent = data.admin
+    ? "Admin: no daily limit."
+    : outOfFeedings
+      ? `You've used all ${data.dailyLimit} feedings for today.`
+      : `${data.remaining} of ${data.dailyLimit} feedings left today.`;
+
+  if (data.admin && !adminLoaded) { adminLoaded = true; $("admin").hidden = false; loadAdmin(); }
+
+  const body = $("history");
+  body.textContent = "";
+  $("empty").hidden = data.history.length > 0;
+  for (const h of data.history) {
+    const tr = document.createElement("tr");
+    const when = new Date(h.time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    for (const text of [h.user, when, h.seconds + " sec"]) {
+      const td = document.createElement("td"); td.textContent = text; tr.appendChild(td);
+    }
+    const td = document.createElement("td");
+    const pill = document.createElement("span");
+    pill.className = "pill" + (h.status === "done" ? "" : " pending");
+    pill.textContent = h.status === "done" ? "Fed" : "Waiting";
+    td.appendChild(pill); tr.appendChild(td);
+    body.appendChild(tr);
+  }
+}
+
+async function feed(seconds) {
+  $("msg").textContent = "Sending…";
+  const { ok, data } = await api("/api/feed", { method: "POST", body: JSON.stringify({ seconds }) });
+  $("msg").textContent = ok ? `Feeding for ${seconds} second${seconds > 1 ? "s" : ""}.` : (data.error || "Could not send the request");
+  refresh();
+  setTimeout(() => ($("msg").textContent = ""), 5000);
+}
+
+/* ---------- admin ---------- */
+async function loadAdmin() {
+  const [s, u] = await Promise.all([api("/api/settings"), api("/api/users")]);
+  if (s.ok) {
+    $("limit").value = s.data.dailyLimit;
+    $("allow-reg").checked = s.data.allowRegistration;
+    $("tz-note").textContent = `Feeds automatically at these times every day (${s.data.tz} time). The feeder must be online.`;
+    $("sched").textContent = "";
+    s.data.schedule.forEach((e) => addSchedRow(e.time, e.seconds));
+  }
+  if (u.ok) renderUsers(u.data.users);
+}
+
+function addSchedRow(time = "07:00", seconds = 3) {
+  const row = document.createElement("div");
+  row.className = "row";
+  const t = document.createElement("input"); t.type = "time"; t.value = time; t.setAttribute("aria-label", "Feeding time");
+  const sel = document.createElement("select"); sel.setAttribute("aria-label", "Open for");
+  for (const n of [1, 3, 5]) {
+    const o = document.createElement("option"); o.value = n; o.textContent = n + (n === 1 ? " second" : " seconds");
+    if (n === Number(seconds)) o.selected = true;
+    sel.appendChild(o);
+  }
+  const rm = document.createElement("button"); rm.type = "button"; rm.className = "link"; rm.textContent = "Remove";
+  rm.addEventListener("click", () => row.remove());
+  row.append(t, sel, rm);
+  $("sched").appendChild(row);
+}
+
+async function saveSettings() {
+  const schedule = [...$("sched").querySelectorAll(".row")].map((r) => ({
+    time: r.querySelector("input").value,
+    seconds: Number(r.querySelector("select").value),
+  }));
+  const msg = $("settings-msg");
+  const { ok, data } = await api("/api/settings", {
+    method: "PUT",
+    body: JSON.stringify({ dailyLimit: Number($("limit").value), schedule, allowRegistration: $("allow-reg").checked }),
+  });
+  msg.classList.toggle("okmsg", ok);
+  msg.textContent = ok ? "Settings saved." : data.error || "Could not save";
+  if (ok) refresh();
+}
+
+function renderUsers(list) {
+  const ul = $("users");
+  ul.textContent = "";
+  for (const u of list) {
+    const li = document.createElement("li");
+    const name = document.createElement("span"); name.textContent = u.name;
+    li.appendChild(name);
+    if (u.source === "site") {
+      const b = document.createElement("button"); b.type = "button"; b.className = "link"; b.textContent = "Remove";
+      b.addEventListener("click", async () => {
+        if (!confirm(`Remove ${u.name}?`)) return;
+        const r = await api("/api/users?username=" + encodeURIComponent(u.name), { method: "DELETE" });
+        if (r.ok) renderUsers(r.data.users); else $("users-msg").textContent = r.data.error || "Could not remove";
+      });
+      li.appendChild(b);
+    } else {
+      const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = "set in Netlify";
+      li.appendChild(tag);
+    }
+    ul.appendChild(li);
+  }
+}
+
+async function addUser() {
+  const msg = $("users-msg");
+  msg.classList.remove("okmsg");
+  const { ok, data } = await api("/api/users", {
+    method: "POST",
+    body: JSON.stringify({ username: $("new-user").value.trim(), password: $("new-pass").value }),
+  });
+  if (!ok) { msg.textContent = data.error || "Could not add user"; return; }
+  msg.classList.add("okmsg");
+  msg.textContent = "User added.";
+  $("new-user").value = ""; $("new-pass").value = "";
+  renderUsers(data.users);
+}
+
+function start() {
+  show(true);
+  refresh();
+  clearInterval(timer);
+  timer = setInterval(refresh, 3000);
+}
+
+$("login-btn").addEventListener("click", login);
+$("password").addEventListener("keydown", (e) => e.key === "Enter" && login());
+$("logout-btn").addEventListener("click", logout);
+$("show-register").addEventListener("click", () => showForm("register"));
+$("show-login").addEventListener("click", () => showForm("login"));
+$("register-btn").addEventListener("click", register);
+$("reg-pass2").addEventListener("keydown", (e) => e.key === "Enter" && register());
+$("add-time").addEventListener("click", () => addSchedRow());
+$("save-settings").addEventListener("click", saveSettings);
+$("add-user").addEventListener("click", addUser);
+document.querySelectorAll(".feed-btn").forEach((b) => b.addEventListener("click", () => feed(Number(b.dataset.sec))));
+
+token ? start() : show(false);
+</script>
+</body>
+</html>
