@@ -2,8 +2,8 @@ import { getStore } from "@netlify/blobs";
 import { getUser, isAdmin, json } from "../lib/auth.mjs";
 import { localParts } from "../lib/time.mjs";
 
-const ALLOWED = [1, 3, 5];
-const BUSY_TIMEOUT_MS = 30000;
+const ALLOWED = [5, 10, 30];
+const BUSY_TIMEOUT_MS = 60000; // longest feed is 30 s, plus polling and confirming
 export const DEFAULT_LIMIT = 5;
 
 export default async (req) => {

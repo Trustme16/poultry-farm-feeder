@@ -3,7 +3,7 @@ import { getUser, isAdmin, json } from "../lib/auth.mjs";
 import { tzName } from "../lib/time.mjs";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const ALLOWED = [1, 3, 5];
+const ALLOWED = [5, 10, 30];
 
 export default async (req) => {
   const me = getUser(req);
@@ -32,7 +32,7 @@ export default async (req) => {
     const seen = new Set();
     for (const e of schedule) {
       if (!TIME_RE.test(e.time || "")) return json({ error: "Each scheduled time needs a valid time" }, 400);
-      if (!ALLOWED.includes(Number(e.seconds))) return json({ error: "Scheduled duration must be 1, 3 or 5 seconds" }, 400);
+      if (!ALLOWED.includes(Number(e.seconds))) return json({ error: "Scheduled duration must be 5, 10 or 30 seconds" }, 400);
       if (seen.has(e.time)) return json({ error: `Time ${e.time} is listed twice` }, 400);
       seen.add(e.time);
     }

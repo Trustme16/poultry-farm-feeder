@@ -155,9 +155,9 @@
       <strong>Open the feeder for</strong>
       <div class="gate-wrap" aria-hidden="true"><div class="gate"></div></div>
       <div class="options">
-        <button class="feed-btn" data-sec="1">1<small>second</small></button>
-        <button class="feed-btn" data-sec="3">3<small>seconds</small></button>
         <button class="feed-btn" data-sec="5">5<small>seconds</small></button>
+        <button class="feed-btn" data-sec="10">10<small>seconds</small></button>
+        <button class="feed-btn" data-sec="30">30<small>seconds</small></button>
       </div>
       <p id="left"></p>
       <div id="msg" role="status"></div>
@@ -327,12 +327,12 @@ async function loadAdmin() {
   if (u.ok) renderUsers(u.data.users);
 }
 
-function addSchedRow(time = "07:00", seconds = 3) {
+function addSchedRow(time = "07:00", seconds = 10) {
   const row = document.createElement("div");
   row.className = "row";
   const t = document.createElement("input"); t.type = "time"; t.value = time; t.setAttribute("aria-label", "Feeding time");
   const sel = document.createElement("select"); sel.setAttribute("aria-label", "Open for");
-  for (const n of [1, 3, 5]) {
+  for (const n of [5, 10, 30]) {
     const o = document.createElement("option"); o.value = n; o.textContent = n + (n === 1 ? " second" : " seconds");
     if (n === Number(seconds)) o.selected = true;
     sel.appendChild(o);
