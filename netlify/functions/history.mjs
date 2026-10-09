@@ -18,11 +18,13 @@ export default async (req) => {
   ]);
   const list = history || [];
 
-  const online = Boolean(seen) && Date.now() - seen.t < ONLINE_WINDOW_MS;
   const busy =
     Boolean(command) &&
     (command.status === "pending" || command.status === "sent") &&
-    Date.now() - command.createdAt < 30000;
+    Date.now() - command.createdAt < 60000;
+  // The feeder stops polling while the gate is open (up to 30 s), so count it as online then too
+  const feeding = busy && command.status === "sent";
+  const online = feeding || (Boolean(seen) && Date.now() - seen.t < ONLINE_WINDOW_MS);
 
   const admin = isAdmin(user);
   const dailyLimit = settings?.dailyLimit ?? DEFAULT_LIMIT;

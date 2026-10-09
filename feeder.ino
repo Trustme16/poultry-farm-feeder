@@ -225,7 +225,7 @@ void pollServer() {
     if (!err && doc["feed"] == true) {
       String id = doc["id"].as<String>();
       int seconds = doc["seconds"] | 0;
-      if (seconds >= 1 && seconds <= 5) {
+      if (seconds >= 1 && seconds <= 30) {
         feed(seconds);
         confirmDone(id);
       }

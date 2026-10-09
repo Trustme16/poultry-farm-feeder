@@ -2,7 +2,7 @@ import { getStore } from "@netlify/blobs";
 import { isDevice, json } from "../lib/auth.mjs";
 import { localParts, toMinutes } from "../lib/time.mjs";
 
-const FRESH_MS = 30000;
+const FRESH_MS = 60000;
 const GRACE_MINUTES = 10; // a scheduled feeding missed by more than this is skipped
 
 // If a scheduled time has arrived, create the command right now.
