@@ -107,6 +107,10 @@
   label.check { display: flex; gap: 10px; align-items: center; font-weight: 600; margin: 18px 0 0; }
   label.check input { width: auto; }
   @media (prefers-reduced-motion: reduce) { .gate { transition: none; } }
+  .cam { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-top: 22px; }
+  .cam h2 { margin: 0; }
+  .cam img { width: 100%; border-radius: 10px; display: block; margin-top: 12px; }
+  .cam .btn { display: inline-block; margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--pine); color: #fff; text-decoration: none; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -161,6 +165,15 @@
       </div>
       <p id="left"></p>
       <div id="msg" role="status"></div>
+    </div>
+
+    <div class="cam" id="cam">
+      <h2>Camera</h2>
+      <div class="status" id="cam-status"><span class="dot"></span><span id="cam-status-text">Checking camera…</span></div>
+      <p class="small" id="cam-note"></p>
+      <a class="btn" id="cam-live" href="#" target="_blank" rel="noopener" hidden>Open live video</a>
+      <p class="small" id="cam-caption" style="margin-top:14px"></p>
+      <img id="cam-photo" alt="Latest photo after feeding" hidden>
     </div>
 
     <h2>Feeding history</h2>
@@ -415,6 +428,53 @@ $("add-user").addEventListener("click", addUser);
 document.querySelectorAll(".feed-btn").forEach((b) => b.addEventListener("click", () => feed(Number(b.dataset.sec))));
 
 token ? start() : show(false);
+</script>
+<script>
+(function () {
+  const $c = (id) => document.getElementById(id);
+  let lastPhotoId = null, photoUrl = null;
+
+  async function camRefresh() {
+    const token = localStorage.getItem("feeder_token");
+    if (!token || $c("dash-view").hidden) return;
+    const headers = { authorization: "Bearer " + token };
+    try {
+      const res = await fetch("/api/camera-status", { headers });
+      if (!res.ok) return;
+      const d = await res.json();
+
+      $c("cam-status").classList.toggle("online", d.online);
+      $c("cam-status-text").textContent = d.online ? "Camera is online" : "Camera is offline";
+
+      const live = $c("cam-live");
+      if (d.online && d.ip) {
+        live.href = "http://" + d.ip + ":81/";
+        live.hidden = false;
+        $c("cam-note").textContent = "Live video only works on the same Wi-Fi as the camera.";
+      } else {
+        live.hidden = true;
+        $c("cam-note").textContent = "";
+      }
+
+      if (d.photo && d.photo.id !== lastPhotoId) {
+        const r = await fetch("/api/photo", { headers });
+        if (r.ok) {
+          const blob = await r.blob();
+          if (photoUrl) URL.revokeObjectURL(photoUrl);
+          photoUrl = URL.createObjectURL(blob);
+          $c("cam-photo").src = photoUrl;
+          $c("cam-photo").hidden = false;
+          lastPhotoId = d.photo.id;
+          const when = new Date(d.photo.time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+          $c("cam-caption").textContent = "After " + d.photo.user + "'s " + d.photo.seconds + "-second feeding · " + when;
+        }
+      }
+    } catch (e) { /* ignore, try again next time */ }
+  }
+
+  setTimeout(camRefresh, 1500);
+  setInterval(camRefresh, 8000);
+})();
 </script>
 </body>
 </html>
