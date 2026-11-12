@@ -111,6 +111,7 @@
   .cam h2 { margin: 0; }
   .cam img { width: 100%; border-radius: 10px; display: block; margin-top: 12px; }
   .cam .btn { display: inline-block; margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--pine); color: #fff; text-decoration: none; font-weight: 600; }
+  .hist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 </style>
 </head>
 <body>
@@ -176,14 +177,19 @@
       <img id="cam-photo" alt="Latest photo after feeding" hidden>
     </div>
 
-    <h2>Feeding history</h2>
-    <div class="wrap">
-      <table>
-        <thead><tr><th>User</th><th>Date and time</th><th>Open</th><th></th></tr></thead>
-        <tbody id="history"></tbody>
-      </table>
+    <div class="hist-head">
+      <h2>Feeding history</h2>
+      <button class="link" id="hist-toggle" type="button" aria-controls="hist-body" aria-expanded="true">Hide history</button>
     </div>
-    <div class="empty" id="empty" hidden>No feedings yet. Press a button above to start.</div>
+    <div id="hist-body">
+      <div class="wrap">
+        <table>
+          <thead><tr><th>User</th><th>Date and time</th><th>Open</th><th></th></tr></thead>
+          <tbody id="history"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty" hidden>No feedings yet. Press a button above to start.</div>
+    </div>
 
     <!-- ADMIN ONLY -->
     <details class="admin" id="admin" hidden>
@@ -474,6 +480,23 @@ token ? start() : show(false);
 
   setTimeout(camRefresh, 1500);
   setInterval(camRefresh, 8000);
+})();
+</script>
+<script>
+(function () {
+  const btn = document.getElementById("hist-toggle");
+  const body = document.getElementById("hist-body");
+  function apply(hidden) {
+    body.hidden = hidden;
+    btn.textContent = hidden ? "Show history" : "Hide history";
+    btn.setAttribute("aria-expanded", String(!hidden));
+  }
+  apply(localStorage.getItem("feeder_hide_history") === "1");
+  btn.addEventListener("click", () => {
+    const hidden = !body.hidden;
+    localStorage.setItem("feeder_hide_history", hidden ? "1" : "0");
+    apply(hidden);
+  });
 })();
 </script>
 </body>
