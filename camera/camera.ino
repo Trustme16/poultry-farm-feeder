@@ -22,7 +22,7 @@
 
 // ---------- CONFIGURATION ----------
 const char* SITE_URL = "https://poultryfarmfeeder.netlify.app";  // no trailing slash
-#define DEVICE_KEY "PASTE_YOUR_DEVICE_KEY_HERE"                   // same as Netlify
+#include "secrets.h"  // local DEVICE_KEY
 // ----------------------------------
 
 const unsigned long POLL_INTERVAL_MS = 5000;
