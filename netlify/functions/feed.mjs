@@ -1,4 +1,4 @@
-import { getStore } from "@netlify/blobs";
+import { withFeeder, getStore } from "../lib/store.mjs";
 import { getUser, isAdmin, json } from "../lib/auth.mjs";
 import { localParts } from "../lib/time.mjs";
 
@@ -6,7 +6,7 @@ const ALLOWED = [5, 10, 30];
 const BUSY_TIMEOUT_MS = 60000; // longest feed is 30 s, plus polling and confirming
 export const DEFAULT_LIMIT = 5;
 
-export default async (req) => {
+export default withFeeder(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const user = getUser(req);
   if (!user) return json({ error: "Please log in again" }, 401);
@@ -48,6 +48,6 @@ export default async (req) => {
   await store.setJSON("history", history.slice(0, 100));
 
   return json({ ok: true, id });
-};
+});
 
 export const config = { path: "/api/feed" };

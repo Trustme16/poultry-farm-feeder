@@ -86,7 +86,11 @@
   th, td { text-align: left; padding: 11px 12px; font-size: .93rem; border-bottom: 1px solid var(--line); }
   th { color: var(--muted); font-weight: 600; background: #EEF3F1; }
   tr:last-child td { border-bottom: 0; }
-  .wrap { overflow-x: auto; border-radius: 14px; }
+  .wrap { overflow: auto; max-height: 340px; scrollbar-gutter: stable; border: 1px solid var(--line); border-radius: 14px; overscroll-behavior: contain; }
+  .wrap thead th { position: sticky; top: 0; z-index: 1; }
+  .camera-frame { aspect-ratio: 4 / 3; background: #123630; border-radius: 10px; margin-top: 12px; overflow: hidden; display: grid; place-items: center; }
+  .camera-frame p { padding: 20px; text-align: center; color: #BCD3CD; }
+  .camera-frame img { width: 100%; height: 100%; object-fit: contain; margin: 0; }
   .empty { padding: 18px; color: var(--muted); }
   .pill { font-size: .8rem; padding: 2px 8px; border-radius: 99px; background: #E4EFE9; color: var(--ok); font-weight: 600; }
   .pill.pending { background: #FBEFD2; color: #8A6100; }
@@ -174,7 +178,12 @@
       <p class="small" id="cam-note"></p>
       <a class="btn" id="cam-live" href="#" target="_blank" rel="noopener" hidden>Open live video</a>
       <p class="small" id="cam-caption" style="margin-top:14px"></p>
-      <img id="cam-photo" alt="Latest photo after feeding" hidden>
+      <div class="camera-frame" aria-label="Camera view">
+        <p id="cam-placeholder">No camera image yet. Take a photo to see the poultry here.</p>
+        <img id="cam-photo" alt="Latest view from the poultry camera" hidden>
+      </div>
+      <button class="secondary" id="take-photo" type="button" disabled>Take photo now</button>
+      <p class="small" id="capture-msg" role="status"></p>
     </div>
 
     <div class="hist-head">
@@ -182,7 +191,7 @@
       <button class="link" id="hist-toggle" type="button" aria-controls="hist-body" aria-expanded="true">Hide history</button>
     </div>
     <div id="hist-body">
-      <div class="wrap">
+      <div class="wrap" tabindex="0" role="region" aria-label="Scrollable feeding history">
         <table>
           <thead><tr><th>User</th><th>Date and time</th><th>Open</th><th></th></tr></thead>
           <tbody id="history"></tbody>
@@ -202,8 +211,17 @@
       <label for="limit">Feedings per user per day (admins have no limit)</label>
       <input id="limit" type="number" min="1" max="50">
 
-      <h3>Automatic feeding</h3>
+      <h3>Camera mode</h3>
+      <label for="camera-mode">Camera behavior</label>
+      <select id="camera-mode">
+        <option value="live">Live view (refreshing images)</option>
+        <option value="after-feed">Take a picture after feeding</option>
+        <option value="manual">Take pictures only when requested</option>
+      </select>
+      <p class="small">You can take a photo at any time in every mode.</p>
+      <h3>Automatic feeding timer</h3>
       <p class="small" id="tz-note"></p>
+      <p class="small">Set the time and how many seconds the gate stays open (1–30). Each time runs once per day.</p>
       <div id="sched"></div>
       <button class="secondary" id="add-time" type="button">Add a time</button>
       <button class="primary" id="save-settings" type="button">Save settings</button>
@@ -338,6 +356,7 @@ async function loadAdmin() {
   const [s, u] = await Promise.all([api("/api/settings"), api("/api/users")]);
   if (s.ok) {
     $("limit").value = s.data.dailyLimit;
+    $("camera-mode").value = s.data.cameraMode;
     $("allow-reg").checked = s.data.allowRegistration;
     $("tz-note").textContent = `Feeds automatically at these times every day (${s.data.tz} time). The feeder must be online.`;
     $("sched").textContent = "";
@@ -350,12 +369,9 @@ function addSchedRow(time = "07:00", seconds = 10) {
   const row = document.createElement("div");
   row.className = "row";
   const t = document.createElement("input"); t.type = "time"; t.value = time; t.setAttribute("aria-label", "Feeding time");
-  const sel = document.createElement("select"); sel.setAttribute("aria-label", "Open for");
-  for (const n of [5, 10, 30]) {
-    const o = document.createElement("option"); o.value = n; o.textContent = n + (n === 1 ? " second" : " seconds");
-    if (n === Number(seconds)) o.selected = true;
-    sel.appendChild(o);
-  }
+  const sel = document.createElement("input");
+  sel.type = "number"; sel.min = "1"; sel.max = "30"; sel.step = "1";
+  sel.value = seconds; sel.setAttribute("aria-label", "Feeding duration in seconds (1–30)");
   const rm = document.createElement("button"); rm.type = "button"; rm.className = "link"; rm.textContent = "Remove";
   rm.addEventListener("click", () => row.remove());
   row.append(t, sel, rm);
@@ -364,13 +380,13 @@ function addSchedRow(time = "07:00", seconds = 10) {
 
 async function saveSettings() {
   const schedule = [...$("sched").querySelectorAll(".row")].map((r) => ({
-    time: r.querySelector("input").value,
-    seconds: Number(r.querySelector("select").value),
+    time: r.querySelector('input[type="time"]').value,
+    seconds: Number(r.querySelector('input[type="number"]').value),
   }));
   const msg = $("settings-msg");
   const { ok, data } = await api("/api/settings", {
     method: "PUT",
-    body: JSON.stringify({ dailyLimit: Number($("limit").value), schedule, allowRegistration: $("allow-reg").checked }),
+    body: JSON.stringify({ dailyLimit: Number($("limit").value), schedule, allowRegistration: $("allow-reg").checked, cameraMode: $("camera-mode").value }),
   });
   msg.classList.toggle("okmsg", ok);
   msg.textContent = ok ? "Settings saved." : data.error || "Could not save";
@@ -438,11 +454,19 @@ token ? start() : show(false);
 <script>
 (function () {
   const $c = (id) => document.getElementById(id);
-  let lastPhotoId = null, photoUrl = null;
+  let lastPhotoId = null, photoUrl = null, refreshing = false;
 
   async function camRefresh() {
     const token = localStorage.getItem("feeder_token");
-    if (!token || $c("dash-view").hidden) return;
+    if (!token || $c("dash-view").hidden) {
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+      photoUrl = null; lastPhotoId = null;
+      $c("cam-photo").removeAttribute("src"); $c("cam-photo").hidden = true;
+      $c("cam-placeholder").hidden = false;
+      return;
+    }
+    if (refreshing) return;
+    refreshing = true;
     const headers = { authorization: "Bearer " + token };
     try {
       const res = await fetch("/api/camera-status", { headers });
@@ -452,14 +476,18 @@ token ? start() : show(false);
       $c("cam-status").classList.toggle("online", d.online);
       $c("cam-status-text").textContent = d.online ? "Camera is online" : "Camera is offline";
 
+      $c("take-photo").disabled = !d.online || d.pending;
+      $c("capture-msg").textContent = d.pending ? "Waiting for the camera…" : "";
+      const notes = { live: "Live view refreshes about every 5–8 seconds while the camera is online.", "after-feed": "A picture is taken after each completed feeding. You can also take one now.", manual: "Take a picture whenever you want, without opening the feeder." };
+      $c("cam-note").textContent = notes[d.mode] || notes["after-feed"];
       const live = $c("cam-live");
       if (d.online && d.ip) {
         live.href = "http://" + d.ip + ":81/";
         live.hidden = false;
-        $c("cam-note").textContent = "Live video only works on the same Wi-Fi as the camera.";
+        live.textContent = "Open full video on camera Wi-Fi";
       } else {
         live.hidden = true;
-        $c("cam-note").textContent = "";
+
       }
 
       if (d.photo && d.photo.id !== lastPhotoId) {
@@ -470,16 +498,31 @@ token ? start() : show(false);
           photoUrl = URL.createObjectURL(blob);
           $c("cam-photo").src = photoUrl;
           $c("cam-photo").hidden = false;
+          $c("cam-placeholder").hidden = true;
           lastPhotoId = d.photo.id;
           const when = new Date(d.photo.time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-          $c("cam-caption").textContent = "After " + d.photo.user + "'s " + d.photo.seconds + "-second feeding · " + when;
+          $c("cam-caption").textContent = (d.photo.kind === "live" ? "Live camera view" : d.photo.kind === "manual" ? "Photo requested by " + d.photo.user : "After " + d.photo.user + "'s " + d.photo.seconds + "-second feeding") + " · " + when;
         }
       }
-    } catch (e) { /* ignore, try again next time */ }
+    } catch (e) {
+      $c("cam-status-text").textContent = "Could not refresh camera. Retrying…";
+    } finally { refreshing = false; }
   }
 
+  $c("take-photo").addEventListener("click", async () => {
+    $c("take-photo").disabled = true;
+    $c("capture-msg").textContent = "Requesting photo…";
+    try {
+      const r = await api("/api/photo", { method: "PUT" });
+      $c("capture-msg").textContent = r.ok ? "Waiting for the camera…" : r.data.error || "Could not request photo";
+      if (!r.ok) $c("take-photo").disabled = false;
+    } catch {
+      $c("capture-msg").textContent = "Connection failed. Try again.";
+      $c("take-photo").disabled = false;
+    }
+  });
   setTimeout(camRefresh, 1500);
-  setInterval(camRefresh, 8000);
+  setInterval(camRefresh, 3000);
 })();
 </script>
 <script>

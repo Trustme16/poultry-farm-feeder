@@ -37,10 +37,11 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <time.h>
+#include <Preferences.h>
 
 // ---------- CHANGE THESE ----------
 #include "secrets.h"  // local Wi-Fi credentials and DEVICE_KEY
-const char* SITE_URL   = "https://YOUR-SITE-NAME.netlify.app";  // no trailing slash
+const char* SITE_URL   = "https://poultryfarmfeeder.netlify.app";  // no trailing slash
 
 // ----------------------------------
 
@@ -53,6 +54,8 @@ const uint8_t LCD_ADDRESS = 0x27;       // try 0x3F if nothing shows
 const long GMT_OFFSET_SEC = 8 * 3600;   // Philippines = UTC+8
 const int  DAYLIGHT_OFFSET_SEC = 0;
 
+Preferences commands;
+String lastCommandId;
 Servo gate;
 LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2);
 
@@ -224,7 +227,11 @@ void pollServer() {
     if (!err && doc["feed"] == true) {
       String id = doc["id"].as<String>();
       int seconds = doc["seconds"] | 0;
-      if (seconds >= 1 && seconds <= 30) {
+      if (id.length() > 0 && seconds >= 1 && seconds <= 30) {
+        if (id == lastCommandId) { confirmDone(id); return; }
+        // Record before moving the gate; retries and restarts cannot feed twice.
+        if (commands.putString("lastId", id) == 0) return;
+        lastCommandId = id;
         feed(seconds);
         confirmDone(id);
       }
@@ -240,6 +247,8 @@ void setup() {
   Serial.begin(115200);
   delay(500);
 
+  commands.begin("feeder", false);
+  lastCommandId = commands.getString("lastId", "");
   Wire.begin(21, 22);
   lcd.init();
   lcd.backlight();

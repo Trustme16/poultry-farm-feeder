@@ -1,11 +1,11 @@
-import { getStore } from "@netlify/blobs";
+import { withFeeder, getStore } from "../lib/store.mjs";
 import { getUser, isAdmin, json } from "../lib/auth.mjs";
 import { localParts } from "../lib/time.mjs";
 
 const ONLINE_WINDOW_MS = 15000;
 const DEFAULT_LIMIT = 5;
 
-export default async (req) => {
+export default withFeeder(async (req) => {
   const user = getUser(req);
   if (!user) return json({ error: "Please log in again" }, 401);
 
@@ -36,6 +36,6 @@ export default async (req) => {
   }
 
   return json({ user, admin, online, busy, remaining, dailyLimit, history: list.slice(0, 50) });
-};
+});
 
 export const config = { path: "/api/history" };

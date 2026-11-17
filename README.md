@@ -11,3 +11,15 @@ The previous device key was committed in the firmware source. Replace it with a 
 ## Deployment
 
 Deploy with the repository's `netlify.toml` settings. No frontend build step is required. Keep private configuration outside `public/`; only browser-safe files belong there.
+
+## Camera and feeding controls
+
+Admins can edit daily feeding times and each gate-open duration (1–30 seconds) in Admin settings, then choose Save settings. Duplicate times are rejected. Schedule times use `TZ_NAME` (Asia/Manila by default); a device that returns more than ten minutes late skips that feeding.
+
+Camera mode is also saved in Admin settings: live view, a picture after feeding, or pictures on request. All logged-in users can choose Take photo now without dispensing feed. Live view shows refreshed uploaded images about every 5–8 seconds in the camera box, including when viewing remotely over HTTPS. Full motion video opens directly from the camera and requires the same Wi-Fi; browser local-network permissions may apply. The latest picture remains visible when the camera is offline, with its capture time.
+
+Upload the updated `feeder.ino` to the feeder ESP32 to enable persistent command deduplication across retries and restarts. It records the command before moving the servo, prioritizing prevention of duplicate dispensing; a power failure between recording and moving can skip that command. The existing camera firmware supports these photo modes without reflashing.
+
+Feeder state uses Netlify Database with a transaction lock across command delivery, schedule claims, settings, and history updates. Deployment applies the generated migration automatically. Existing state and accounts are imported from the legacy Blobs store on first access; photo files stay in Blobs. Do not run the previous firmware/backend against the same feeder during rollout.
+
+Run `npm test` for regression checks covering concurrent scheduled polls, admin timer validation, and camera capture modes. Tests simulate the database transport; hardware behavior requires testing on the ESP32 boards.
