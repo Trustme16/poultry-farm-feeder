@@ -98,6 +98,32 @@ test('admin timer accepts custom seconds and rejects duplicates, invalid timers 
   assert.equal((await f.call('settings','PUT',{...body,schedule:[{time:'08:00',seconds:31}]})).status,400);
 });
 
+test('normal users can edit shared schedules and camera mode without changing admin settings', async () => {
+  const f = await fixture();
+  f.records.set('settings', { dailyLimit:3, allowRegistration:false, schedule:[], cameraMode:'live' });
+  const schedule = [{time:'09:30',seconds:6}];
+  assert.equal((await f.call('settings','PUT',{schedule,cameraMode:'after-feed'},'viewer')).status,200);
+  let settings = f.records.get('settings');
+  assert.deepEqual(settings.schedule, schedule);
+  assert.equal(settings.cameraMode,'after-feed');
+  assert.equal(settings.dailyLimit,3);
+  assert.equal(settings.allowRegistration,false);
+  assert.equal((await f.call('settings','PUT',{cameraMode:'manual'},'viewer')).status,200);
+  assert.deepEqual(f.records.get('settings').schedule,schedule);
+  assert.equal((await f.call('settings','PUT',{allowRegistration:true},'viewer')).status,403);
+  assert.equal((await f.call('settings','PUT',{dailyLimit:50},'viewer')).status,403);
+  assert.equal((await f.call('settings','PUT',{schedule:[{time:'25:00',seconds:6}]},'viewer')).status,400);
+  assert.equal((await f.call('settings','PUT',{cameraMode:'invalid'},'viewer')).status,400);
+  assert.equal((await f.call('settings','PUT',{dailyLimit:4,allowRegistration:true})).status,200);
+  settings = f.records.get('settings');
+  assert.deepEqual(settings.schedule,schedule);
+  assert.equal(settings.cameraMode,'manual');
+  f.records.set('camera',{t:Date.now()});
+  assert.equal((await f.call('photo','PUT',undefined,'viewer')).status,200);
+  assert.equal(f.records.get('photoReq').user,'viewer');
+  assert.equal(f.records.has('command'),false);
+});
+
 test('manual photo works before any feeding, failed uploads retry, modes control automatic capture', async () => {
   const f = await fixture();
   f.records.set('camera',{t:Date.now(),ip:'192.168.1.10'});

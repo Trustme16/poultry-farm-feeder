@@ -182,7 +182,7 @@
         <p id="cam-placeholder">No camera image yet. Take a photo to see the poultry here.</p>
         <img id="cam-photo" alt="Latest view from the poultry camera" hidden>
       </div>
-      <button class="secondary" id="take-photo" type="button" disabled>Take photo now</button>
+      <button class="secondary" id="take-photo" type="button" disabled>Take photo without feeding</button>
       <p class="small" id="capture-msg" role="status"></p>
     </div>
 
@@ -200,6 +200,27 @@
       <div class="empty" id="empty" hidden>No feedings yet. Press a button above to start.</div>
     </div>
 
+    <details class="admin" open>
+      <summary>Automatic feeding and camera</summary>
+      <p class="small">These settings are shared by everyone using this feeder.</p>
+      <h3>Camera mode</h3>
+      <label for="camera-mode">Camera behavior</label>
+      <select id="camera-mode">
+        <option value="live">Live view (refreshing images)</option>
+        <option value="after-feed">Take a picture after feeding</option>
+        <option value="manual">Take pictures only when requested</option>
+      </select>
+      <p class="small">Choose whether photos are taken after feeding. Use “Take photo without feeding” in any mode for a separate picture.</p>
+      <h3>Automatic feeding timer</h3>
+      <p class="small" id="tz-note"></p>
+      <p class="small">Set the time and how many seconds the gate stays open (1–30). Each time runs once per day.</p>
+      <div id="sched"></div>
+      <button class="secondary" id="add-time" type="button">Add a time</button>
+      <button class="primary" id="save-settings" type="button">Save feeding and camera settings</button>
+      <div class="error" id="settings-msg" role="status"></div>
+
+    </details>
+
     <!-- ADMIN ONLY -->
     <details class="admin" id="admin" hidden>
       <summary>Admin settings</summary>
@@ -211,21 +232,8 @@
       <label for="limit">Feedings per user per day (admins have no limit)</label>
       <input id="limit" type="number" min="1" max="50">
 
-      <h3>Camera mode</h3>
-      <label for="camera-mode">Camera behavior</label>
-      <select id="camera-mode">
-        <option value="live">Live view (refreshing images)</option>
-        <option value="after-feed">Take a picture after feeding</option>
-        <option value="manual">Take pictures only when requested</option>
-      </select>
-      <p class="small">You can take a photo at any time in every mode.</p>
-      <h3>Automatic feeding timer</h3>
-      <p class="small" id="tz-note"></p>
-      <p class="small">Set the time and how many seconds the gate stays open (1–30). Each time runs once per day.</p>
-      <div id="sched"></div>
-      <button class="secondary" id="add-time" type="button">Add a time</button>
-      <button class="primary" id="save-settings" type="button">Save settings</button>
-      <div class="error" id="settings-msg" role="status"></div>
+      <button class="primary" id="save-admin-settings" type="button">Save admin settings</button>
+      <div class="error" id="admin-settings-msg" role="status"></div>
 
       <h3>Users</h3>
       <ul class="users" id="users"></ul>
@@ -353,7 +361,12 @@ async function feed(seconds) {
 
 /* ---------- admin ---------- */
 async function loadAdmin() {
-  const [s, u] = await Promise.all([api("/api/settings"), api("/api/users")]);
+  const u = await api("/api/users");
+  if (u.ok) renderUsers(u.data.users);
+}
+
+async function loadSettings() {
+  const s = await api("/api/settings");
   if (s.ok) {
     $("limit").value = s.data.dailyLimit;
     $("camera-mode").value = s.data.cameraMode;
@@ -362,7 +375,8 @@ async function loadAdmin() {
     $("sched").textContent = "";
     s.data.schedule.forEach((e) => addSchedRow(e.time, e.seconds));
   }
-  if (u.ok) renderUsers(u.data.users);
+  $("save-settings").disabled = !s.ok;
+  if (!s.ok) $("settings-msg").textContent = s.data.error || "Could not load settings";
 }
 
 function addSchedRow(time = "07:00", seconds = 10) {
@@ -386,11 +400,26 @@ async function saveSettings() {
   const msg = $("settings-msg");
   const { ok, data } = await api("/api/settings", {
     method: "PUT",
-    body: JSON.stringify({ dailyLimit: Number($("limit").value), schedule, allowRegistration: $("allow-reg").checked, cameraMode: $("camera-mode").value }),
+    body: JSON.stringify({ schedule, cameraMode: $("camera-mode").value }),
   });
   msg.classList.toggle("okmsg", ok);
   msg.textContent = ok ? "Settings saved." : data.error || "Could not save";
   if (ok) refresh();
+}
+
+async function saveAdminSettings() {
+  const msg = $("admin-settings-msg");
+  try {
+    const { ok, data } = await api("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ dailyLimit: Number($("limit").value), allowRegistration: $("allow-reg").checked }),
+    });
+    msg.classList.toggle("okmsg", ok);
+    msg.textContent = ok ? "Admin settings saved." : data.error || "Could not save";
+    if (ok) refresh();
+  } catch {
+    msg.textContent = "Could not save. Please try again.";
+  }
 }
 
 function renderUsers(list) {
@@ -432,6 +461,7 @@ async function addUser() {
 
 function start() {
   show(true);
+  loadSettings().catch(() => { $("save-settings").disabled = true; $("settings-msg").textContent = "Could not load settings. Please log in again to retry."; });
   refresh();
   clearInterval(timer);
   timer = setInterval(refresh, 3000);
@@ -445,7 +475,8 @@ $("show-login").addEventListener("click", () => showForm("login"));
 $("register-btn").addEventListener("click", register);
 $("reg-pass2").addEventListener("keydown", (e) => e.key === "Enter" && register());
 $("add-time").addEventListener("click", () => addSchedRow());
-$("save-settings").addEventListener("click", saveSettings);
+$("save-settings").addEventListener("click", () => saveSettings().catch(() => { $("settings-msg").textContent = "Could not save. Please try again."; }));
+$("save-admin-settings").addEventListener("click", saveAdminSettings);
 $("add-user").addEventListener("click", addUser);
 document.querySelectorAll(".feed-btn").forEach((b) => b.addEventListener("click", () => feed(Number(b.dataset.sec))));
 

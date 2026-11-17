@@ -14,9 +14,9 @@ Deploy with the repository's `netlify.toml` settings. No frontend build step is 
 
 ## Camera and feeding controls
 
-Admins can edit daily feeding times and each gate-open duration (1–30 seconds) in Admin settings, then choose Save settings. Duplicate times are rejected. Schedule times use `TZ_NAME` (Asia/Manila by default); a device that returns more than ten minutes late skips that feeding.
+All logged-in users can edit the shared daily feeding times and each gate-open duration (1–30 seconds) in Automatic feeding and camera, then choose Save feeding and camera settings. Duplicate times are rejected. Schedule times use `TZ_NAME` (Asia/Manila by default); a device that returns more than ten minutes late skips that feeding.
 
-Camera mode is also saved in Admin settings: live view, a picture after feeding, or pictures on request. All logged-in users can choose Take photo now without dispensing feed. Live view shows refreshed uploaded images about every 5–8 seconds in the camera box, including when viewing remotely over HTTPS. Full motion video opens directly from the camera and requires the same Wi-Fi; browser local-network permissions may apply. The latest picture remains visible when the camera is offline, with its capture time.
+Camera mode is also available to all logged-in users in Automatic feeding and camera: live view, a picture after feeding, or pictures on request. All logged-in users can choose Take photo without feeding without dispensing feed. Live view shows refreshed uploaded images about every 5–8 seconds in the camera box, including when viewing remotely over HTTPS. Full motion video opens directly from the camera and requires the same Wi-Fi; browser local-network permissions may apply. The latest picture remains visible when the camera is offline, with its capture time.
 
 Upload the updated `feeder.ino` to the feeder ESP32 to enable persistent command deduplication across retries and restarts. It records the command before moving the servo, prioritizing prevention of duplicate dispensing; a power failure between recording and moving can skip that command. The existing camera firmware supports these photo modes without reflashing.
 
