@@ -16,22 +16,26 @@ export default withFeeder(async (req) => {
   }
 
   if (req.method === "PUT") {
-    if (!isAdmin(me)) return json({ error: "Admins only" }, 403);
     let body;
     try {
       body = await req.json();
     } catch {
       return json({ error: "Bad request" }, 400);
     }
-    const dailyLimit = Number(body.dailyLimit);
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Bad request" }, 400);
+    if (!isAdmin(me) && ("dailyLimit" in body || "allowRegistration" in body))
+      return json({ error: "Only admins can change daily limits or registration" }, 403);
+    const previous = (await store.get("settings", { type: "json" })) || {};
+    const dailyLimit = Number(body.dailyLimit ?? previous.dailyLimit ?? 5);
     if (!Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 50)
       return json({ error: "Daily limit must be a whole number from 1 to 50" }, 400);
 
-    const schedule = Array.isArray(body.schedule) ? body.schedule : [];
+    const schedule = body.schedule ?? previous.schedule ?? [];
+    if (!Array.isArray(schedule)) return json({ error: "Schedule must be a list" }, 400);
     if (schedule.length > 8) return json({ error: "At most 8 scheduled feedings" }, 400);
     const seen = new Set();
     for (const e of schedule) {
-      if (!TIME_RE.test(e.time || "")) return json({ error: "Each scheduled time needs a valid time" }, 400);
+      if (!e || !TIME_RE.test(e.time || "")) return json({ error: "Each scheduled time needs a valid time" }, 400);
       if (!validSeconds(e.seconds)) return json({ error: "Scheduled duration must be a whole number from 1 to 30 seconds" }, 400);
       if (seen.has(e.time)) return json({ error: `Time ${e.time} is listed twice` }, 400);
       seen.add(e.time);
@@ -39,11 +43,10 @@ export default withFeeder(async (req) => {
     const clean = schedule
       .map((e) => ({ time: e.time, seconds: Number(e.seconds) }))
       .sort((a, b) => a.time.localeCompare(b.time));
-    const previous = (await store.get("settings", { type: "json" })) || {};
     const cameraMode = body.cameraMode ?? previous.cameraMode ?? "after-feed";
     if (!["live", "after-feed", "manual"].includes(cameraMode)) return json({ error: "Invalid camera mode" }, 400);
-    const allowRegistration = body.allowRegistration !== false;
-    await store.setJSON("settings", { dailyLimit, schedule: clean, allowRegistration, cameraMode });
+    const allowRegistration = (body.allowRegistration ?? previous.allowRegistration) !== false;
+    await store.setJSON("settings", { ...previous, dailyLimit, schedule: clean, allowRegistration, cameraMode });
     return json({ dailyLimit, schedule: clean, allowRegistration, cameraMode, tz: tzName() });
   }
 
