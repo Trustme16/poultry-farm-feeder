@@ -39,10 +39,9 @@
 #include <time.h>
 
 // ---------- CHANGE THESE ----------
-const char* WIFI_SSID  = "YOUR_WIFI_NAME";
-const char* WIFI_PASS  = "YOUR_WIFI_PASSWORD";
+#include "secrets.h"  // local Wi-Fi credentials and DEVICE_KEY
 const char* SITE_URL   = "https://YOUR-SITE-NAME.netlify.app";  // no trailing slash
-const char* deviceKey = "PoultryFeederKey_7f9a2b4c8d1e6f3a";
+
 // ----------------------------------
 
 const int SERVO_PIN    = 18;
