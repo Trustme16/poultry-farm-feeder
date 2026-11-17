@@ -1,10 +1,24 @@
-import { getStore } from "@netlify/blobs";
+import { withFeeder, getStore } from "../lib/store.mjs";
 import { getUser, isDevice, json } from "../lib/auth.mjs";
 
 const MAX_BYTES = 1500000;
 
-export default async (req) => {
+export default withFeeder(async (req) => {
   const store = getStore("feeder");
+
+  if (req.method === "PUT") {
+    const user = getUser(req);
+    if (!user) return json({ error: "Please log in again" }, 401);
+    const camera = await store.get("camera", { type: "json" });
+    if (!camera || Date.now() - camera.t > 20000) return json({ error: "Camera is offline" }, 409);
+    const previous = await store.get("photoReq", { type: "json" });
+    const latest = await store.getMetadata("photo");
+    if (previous && previous.id !== latest?.metadata?.id && Date.now() - previous.createdAt < 120000)
+      return json({ error: "A photo is already being taken" }, 409);
+    const id = crypto.randomUUID();
+    await store.setJSON("photoReq", { id, user, seconds: 0, kind: "manual", createdAt: Date.now() });
+    return json({ ok: true, id });
+  }
 
   // Camera uploads the photo
   if (req.method === "POST") {
@@ -17,7 +31,7 @@ export default async (req) => {
     if (data.byteLength < 100 || data.byteLength > MAX_BYTES) return json({ error: "Bad photo size" }, 400);
 
     await store.set("photo", data, {
-      metadata: { id, time: Date.now(), user: wanted.user, seconds: wanted.seconds },
+      metadata: { id, time: Date.now(), user: wanted.user, seconds: wanted.seconds, kind: wanted.kind || "after-feed" },
     });
     return json({ ok: true });
   }
@@ -33,6 +47,6 @@ export default async (req) => {
   }
 
   return json({ error: "Method not allowed" }, 405);
-};
+});
 
 export const config = { path: "/api/photo" };

@@ -1,10 +1,10 @@
-import { getStore } from "@netlify/blobs";
+import { withFeeder, getStore } from "../lib/store.mjs";
 import { getUser, isAdmin, envUsers, hashPassword, json } from "../lib/auth.mjs";
 
 const NAME_RE = /^[A-Za-z0-9_]{2,20}$/;
 const has = (obj, name) => Object.keys(obj).some((u) => u.toLowerCase() === name.toLowerCase());
 
-export default async (req) => {
+export default withFeeder(async (req) => {
   const me = getUser(req);
   if (!me) return json({ error: "Please log in again" }, 401);
   if (!isAdmin(me)) return json({ error: "Admins only" }, 403);
@@ -46,6 +46,6 @@ export default async (req) => {
   }
 
   return json({ error: "Method not allowed" }, 405);
-};
+});
 
 export const config = { path: "/api/users" };

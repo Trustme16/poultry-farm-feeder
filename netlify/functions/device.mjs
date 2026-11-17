@@ -1,4 +1,4 @@
-import { getStore } from "@netlify/blobs";
+import { withFeeder, getStore } from "../lib/store.mjs";
 import { isDevice, json } from "../lib/auth.mjs";
 import { localParts, toMinutes } from "../lib/time.mjs";
 
@@ -47,7 +47,7 @@ async function runSchedule(store) {
 // The ESP32 cannot be reached from the internet, so it calls this endpoint instead.
 //   GET  /api/device  -> "any feed command waiting for me?"
 //   POST /api/device  -> "I finished command <id>"
-export default async (req) => {
+export default withFeeder(async (req) => {
   if (!isDevice(req)) return json({ error: "Unauthorized" }, 401);
   const store = getStore("feeder");
   await store.setJSON("lastSeen", { t: Date.now() });
@@ -90,6 +90,6 @@ export default async (req) => {
   }
 
   return json({ error: "Method not allowed" }, 405);
-};
+});
 
 export const config = { path: "/api/device" };

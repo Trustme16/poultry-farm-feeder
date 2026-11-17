@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getStore } from "@netlify/blobs";
+import { getStore } from "./store.mjs";
 
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
